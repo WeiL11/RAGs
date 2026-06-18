@@ -58,9 +58,10 @@ class Settings(BaseSettings):
     answer_model: str = "claude-opus-4-8"
     judge_model: str = "claude-opus-4-8"  # RAGAS judge (M4)
 
-    # Gemini (free tier — Google AI Studio key)
+    # Gemini (free tier — Google AI Studio key). 2.0-flash has a much higher free
+    # daily quota than 2.5-flash (~20/day). Override with GEMINI_MODEL.
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-2.0-flash"
 
     max_tokens: int = 4096
     agent_max_iterations: int = 6  # cap tool-use rounds per query

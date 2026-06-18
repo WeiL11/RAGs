@@ -33,6 +33,8 @@ _PRICING = {
     "claude-haiku-4-5": (1.0, 5.0),
     "claude-fable-5": (10.0, 50.0),
     "gemini-2.5-flash": (0.0, 0.0),  # free tier
+    "gemini-2.0-flash": (0.0, 0.0),  # free tier
+    "gemini-2.5-flash-lite": (0.0, 0.0),
 }
 
 

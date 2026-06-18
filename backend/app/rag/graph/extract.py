@@ -135,7 +135,7 @@ class GeminiExtractor:
         config = t.GenerateContentConfig(
             system_instruction=_GEMINI_SYSTEM,
             response_mime_type="application/json",
-            max_output_tokens=2048,
+            max_output_tokens=8192,  # a whole episode yields many entities
         )
         last_err: Exception | None = None
         for attempt in range(3):  # tolerate free-tier rate limits

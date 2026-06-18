@@ -41,15 +41,25 @@ def build_graph(
     if limit:
         paths = paths[:limit]
 
+    # Extract ONCE per episode (free-tier friendly: ~1 request/episode instead of
+    # hundreds). Mention/relation provenance is recovered by matching entity names to
+    # the chunk they appear in, so we keep chunk-level timestamps.
     for path in paths:
         doc = TranscriptDoc.load(path)
         chunks = chunk_segments(
             doc.segments, settings.chunk_target_chars, settings.chunk_overlap_chars
         )
-        print(f"[graph] {doc.episode_id}: {len(chunks)} chunks", flush=True)
-        for c in chunks:
-            result = extractor.extract(c.text)
-            mention = {
+
+        def _chunk_for(name: str):
+            for c in chunks:
+                if name and name in c.text:
+                    return c
+            return None
+
+        def _mention(c) -> dict | None:
+            if c is None:
+                return None
+            return {
                 "text": c.text,
                 "episode_id": doc.episode_id,
                 "ep_number": doc.ep_number,
@@ -57,15 +67,21 @@ def build_graph(
                 "start_s": c.start_s,
                 "end_s": c.end_s,
             }
-            for ent in result.get("entities", []):
-                store.add_entity(ent["name"], ent.get("type", "other"), mention)
-            for rel in result.get("relations", []):
-                # ensure endpoints exist even if not listed as entities
-                store.add_entity(rel["subject"], "other")
-                store.add_entity(rel["object"], "other")
-                store.add_relation(
-                    rel["subject"], rel["relation"], rel["object"], doc.episode_id, c.text
-                )
+
+        result = extractor.extract(doc.full_text[:20000])
+        ents = result.get("entities", [])
+        rels = result.get("relations", [])
+        print(f"[graph] {doc.episode_id}: {len(ents)} entities, {len(rels)} relations", flush=True)
+
+        for ent in ents:
+            store.add_entity(ent["name"], ent.get("type", "other"), _mention(_chunk_for(ent["name"])))
+        for rel in rels:
+            store.add_entity(rel["subject"], "other")
+            store.add_entity(rel["object"], "other")
+            c = _chunk_for(rel["subject"]) or _chunk_for(rel["object"])
+            store.add_relation(
+                rel["subject"], rel["relation"], rel["object"], doc.episode_id, c.text if c else ""
+            )
 
     store.save()
     print(f"[ok] graph: {store.num_nodes} nodes, {store.num_edges} edges → {store.path}")
