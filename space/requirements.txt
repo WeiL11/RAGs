@@ -1,2 +1,3 @@
-gradio==4.44.1
+gradio==6.19.0
+audioop-lts; python_version >= "3.13"
 gooaye-rag-backend[serve] @ git+https://github.com/WeiL11/RAGs.git#subdirectory=backend

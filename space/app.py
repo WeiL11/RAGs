@@ -69,7 +69,6 @@ async def respond(message: str, history, strategy: str):
 
 demo = gr.ChatInterface(
     fn=respond,
-    type="messages",
     title="股癌 Gooaye — Podcast RAG",
     description="問股癌 podcast 的內容，AI 依逐字稿回答並標註來源。內容為節目個人觀點，非投資建議。",
     additional_inputs=[
