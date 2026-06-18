@@ -1,0 +1,29 @@
+# Secrets
+.env
+*.env.local
+
+# Data — transcripts, vector store, graph. Never commit (and never commit audio).
+data/
+*.mp3
+*.m4a
+*.wav
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

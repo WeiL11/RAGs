@@ -1,0 +1,73 @@
+<svg viewBox="0 0 880 500" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>Detailed structure of Agentic, Graph and Corrective RAG</title>
+<desc>Agentic loops an LLM-driven tool search; Graph traverses a knowledge graph then generates once; Corrective retrieves, grades, and rewrites until results are relevant.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect x="0" y="0" width="880" height="500" fill="#ffffff"/>
+<text x="155" y="26" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Agentic RAG</text>
+<text x="155" y="44" text-anchor="middle" font-size="10" fill="#6b7280">the LLM runs the search itself</text>
+<text x="440" y="26" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Graph RAG</text>
+<text x="440" y="44" text-anchor="middle" font-size="10" fill="#6b7280">walk a knowledge graph</text>
+<text x="725" y="26" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Corrective RAG</text>
+<text x="725" y="44" text-anchor="middle" font-size="10" fill="#6b7280">grade, then self-correct</text>
+<g font-size="11" font-weight="600" fill="#111827" text-anchor="middle">
+<rect x="35" y="58" width="240" height="36" rx="7" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/><text x="155" y="81">Query</text>
+<rect x="35" y="108" width="240" height="36" rx="7" fill="#fffbeb" stroke="#d97706" stroke-width="2"/><text x="155" y="131">🧠 Plan: pick tool / rewrite</text>
+<rect x="35" y="158" width="240" height="36" rx="7" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/><text x="155" y="181">Search: vector + keyword</text>
+<rect x="35" y="208" width="240" height="36" rx="7" fill="#fffbeb" stroke="#d97706" stroke-width="2"/><text x="155" y="231">🧠 Enough? loop or stop</text>
+<rect x="35" y="258" width="240" height="36" rx="7" fill="#fffbeb" stroke="#d97706" stroke-width="2"/><text x="155" y="281">🧠 Write cited answer</text>
+<rect x="320" y="58" width="240" height="36" rx="7" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/><text x="440" y="81">Query</text>
+<rect x="320" y="108" width="240" height="36" rx="7" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/><text x="440" y="131">Find entities in query</text>
+<rect x="320" y="158" width="240" height="36" rx="7" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/><text x="440" y="181">Traverse graph (neighbors)</text>
+<rect x="320" y="208" width="240" height="36" rx="7" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/><text x="440" y="231">Gather passages + relations</text>
+<rect x="320" y="258" width="240" height="36" rx="7" fill="#fffbeb" stroke="#d97706" stroke-width="2"/><text x="440" y="281">🧠 Synthesize answer</text>
+<rect x="605" y="58" width="240" height="36" rx="7" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/><text x="725" y="81">Query</text>
+<rect x="605" y="108" width="240" height="36" rx="7" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/><text x="725" y="131">Retrieve top-k</text>
+<rect x="605" y="158" width="240" height="36" rx="7" fill="#fffbeb" stroke="#d97706" stroke-width="2"/><text x="725" y="181">🧠 Grade: relevant?</text>
+<rect x="605" y="208" width="240" height="36" rx="7" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/><text x="725" y="231">Weak → rewrite + re-search</text>
+<rect x="605" y="258" width="240" height="36" rx="7" fill="#fffbeb" stroke="#d97706" stroke-width="2"/><text x="725" y="281">🧠 Write from kept passages</text>
+</g>
+<g stroke="#9ca3af" stroke-width="1.5" fill="none">
+<line x1="155" y1="94" x2="155" y2="106" marker-end="url(#arrow)"/>
+<line x1="155" y1="144" x2="155" y2="156" marker-end="url(#arrow)"/>
+<line x1="155" y1="194" x2="155" y2="206" marker-end="url(#arrow)"/>
+<line x1="155" y1="244" x2="155" y2="256" marker-end="url(#arrow)"/>
+<line x1="440" y1="94" x2="440" y2="106" marker-end="url(#arrow)"/>
+<line x1="440" y1="144" x2="440" y2="156" marker-end="url(#arrow)"/>
+<line x1="440" y1="194" x2="440" y2="206" marker-end="url(#arrow)"/>
+<line x1="440" y1="244" x2="440" y2="256" marker-end="url(#arrow)"/>
+<line x1="725" y1="94" x2="725" y2="106" marker-end="url(#arrow)"/>
+<line x1="725" y1="144" x2="725" y2="156" marker-end="url(#arrow)"/>
+<line x1="725" y1="194" x2="725" y2="206" marker-end="url(#arrow)"/>
+<line x1="725" y1="244" x2="725" y2="256" marker-end="url(#arrow)"/>
+<path d="M275 226 C300 226 300 126 275 126" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<path d="M605 226 C580 226 580 126 605 126" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+</g>
+<text x="304" y="180" font-size="9" fill="#6b7280">retry</text>
+<text x="576" y="180" font-size="9" text-anchor="end" fill="#6b7280">rewrite</text>
+<g font-size="10" fill="#111827">
+<rect x="35" y="312" width="240" height="120" rx="7" fill="#f9fafb" stroke="#d1d5db" stroke-width="1"/>
+<text x="47" y="332" font-weight="700">Profile</text>
+<text x="47" y="352">LLM calls: 2–6 (loops)</text>
+<text x="47" y="370">Index: vectors + keyword</text>
+<text x="47" y="388">Best for: multi-step, open-ended</text>
+<text x="47" y="406" fill="#6b7280">Watch out: slower, pricier</text>
+<text x="47" y="424" fill="#6b7280">Control: LLM-decided loop</text>
+<rect x="320" y="312" width="240" height="120" rx="7" fill="#f9fafb" stroke="#d1d5db" stroke-width="1"/>
+<text x="332" y="332" font-weight="700">Profile</text>
+<text x="332" y="352">LLM calls: 1 (synthesis)</text>
+<text x="332" y="370">Index: knowledge graph</text>
+<text x="332" y="388">Best for: relationships, roll-ups</text>
+<text x="332" y="406" fill="#6b7280">Watch out: build cost; ASR noise</text>
+<text x="332" y="424" fill="#6b7280">Control: linear traversal</text>
+<rect x="605" y="312" width="240" height="120" rx="7" fill="#f9fafb" stroke="#d1d5db" stroke-width="1"/>
+<text x="617" y="332" font-weight="700">Profile</text>
+<text x="617" y="352">LLM calls: 2+ (grader + answer)</text>
+<text x="617" y="370">Index: vectors + keyword</text>
+<text x="617" y="388">Best for: weak / ambiguous hits</text>
+<text x="617" y="406" fill="#6b7280">Watch out: extra grading latency</text>
+<text x="617" y="424" fill="#6b7280">Control: relevance-gated loop</text>
+</g>
+<circle cx="200" cy="460" r="6" fill="#d97706"/><text x="212" y="464" font-size="12" fill="#111827">🧠 LLM step (paid)</text>
+<circle cx="380" cy="460" r="6" fill="#16a34a"/><text x="392" y="464" font-size="12" fill="#111827">local / free step</text>
+<path d="M560 456 C572 456 572 466 560 466" stroke="#9ca3af" stroke-width="1.5" fill="none" stroke-dasharray="4 3"/><text x="585" y="464" font-size="12" fill="#111827">dashed = loop until good</text>
+</svg>

@@ -1,0 +1,66 @@
+[project]
+name = "gooaye-rag-backend"
+version = "0.1.0"
+description = "Pluggable RAG backend for the Gooaye (股癌) podcast"
+requires-python = ">=3.11"
+
+# Core deps — enough to run the app shell + EchoStrategy (M0).
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+# M1 — ingestion pipeline (RSS + chunking + indexing + embeddings).
+# Add an ASR engine extra below depending on asr_provider.
+ingestion = [
+    "feedparser>=6.0",
+    "jieba>=0.42",
+    "qdrant-client>=1.12",
+    "voyageai>=0.3",
+    "httpx>=0.27",
+    "opencc-python-reimplemented>=0.1.7",
+]
+# Local embeddings (free, no API key) — BGE-M3 via sentence-transformers:
+embed-local = ["sentence-transformers>=3.0"]
+# ASR engines (pick one to match asr_provider):
+asr-mlx = ["mlx-whisper>=0.4"]            # local, Apple Silicon — free, default
+asr-faster = ["faster-whisper>=1.0"]      # local, CPU/CUDA — free, portable
+asr-openai = ["openai>=1.54"]             # Whisper API — paid
+# M2/M3 — RAG strategies
+rag = [
+    "anthropic>=0.40",
+    "voyageai>=0.3",
+    "qdrant-client>=1.12",
+    "rank-bm25>=0.2.2",
+    "jieba>=0.42",
+    "networkx>=3.4",
+]
+# M4 — evaluation
+eval = [
+    "ragas>=0.2",
+    "datasets>=3.0",
+    "pandas>=2.2",
+]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.7",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
