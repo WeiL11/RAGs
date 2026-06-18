@@ -14,8 +14,11 @@ os.environ.setdefault("QDRANT_MODE", "local")
 os.environ.setdefault("QDRANT_PATH", os.path.join(HERE, "data", "qdrant_local"))
 os.environ.setdefault("TRANSCRIPTS_DIR", os.path.join(HERE, "data", "transcripts"))
 os.environ.setdefault("GRAPH_PATH", os.path.join(HERE, "data", "graph.json"))
-# Strategies that need only the shipped vector index (graph needs graph.json built):
-os.environ.setdefault("ENABLED_STRATEGIES", "corrective,agentic")
+# Graph RAG only works if a prebuilt graph.json was shipped; enable it conditionally.
+_strats = "corrective,agentic"
+if os.path.exists(os.environ["GRAPH_PATH"]):
+    _strats += ",graph"
+os.environ.setdefault("ENABLED_STRATEGIES", _strats)
 # GEMINI_API_KEY comes from the Space secret.
 
 import gradio as gr  # noqa: E402

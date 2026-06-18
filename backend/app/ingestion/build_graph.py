@@ -28,9 +28,9 @@ def build_graph(
 ) -> GraphStore:
     settings = settings or get_settings()
     if extractor is None:
-        from app.rag.graph.extract import ClaudeExtractor
+        from app.rag.graph.extract import get_extractor
 
-        extractor = ClaudeExtractor(settings)
+        extractor = get_extractor(settings)
     store = store or GraphStore(settings.graph_path)
 
     paths = sorted(

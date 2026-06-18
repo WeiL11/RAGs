@@ -42,6 +42,29 @@ def test_tool_schema_translation():
     assert "vector_search" in names and "keyword_search" in names
 
 
+def test_extraction_json_parser():
+    from app.rag.graph.extract import _parse_extraction
+
+    fenced = '```json\n{"entities":[{"name":"輝達","type":"company"}],"relations":[]}\n```'
+    out = _parse_extraction(fenced)
+    assert out["entities"][0]["name"] == "輝達" and out["relations"] == []
+
+    noisy = '好的：{"entities":[],"relations":[{"subject":"A","relation":"x","object":"B"}]} 完成'
+    assert _parse_extraction(noisy)["relations"][0]["subject"] == "A"
+
+    assert _parse_extraction("not json at all") == {"entities": [], "relations": []}
+
+
+def test_get_extractor_selects_provider():
+    from app.config import get_settings
+    from app.rag.graph.extract import GeminiExtractor, get_extractor
+
+    s = get_settings()
+    s.llm_provider = "gemini"
+    s.gemini_api_key = "x"
+    assert isinstance(get_extractor(s), GeminiExtractor)
+
+
 def test_message_translation_roundtrip_shapes():
     llm = _llm()
     messages = [
