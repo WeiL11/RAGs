@@ -32,6 +32,7 @@ _PRICING = {
     "claude-sonnet-4-6": (3.0, 15.0),
     "claude-haiku-4-5": (1.0, 5.0),
     "claude-fable-5": (10.0, 50.0),
+    "gemini-2.5-flash": (0.0, 0.0),  # free tier
 }
 
 
@@ -53,9 +54,9 @@ class AgenticRAGStrategy(BaseRAGStrategy):
     @property
     def llm(self) -> LLM:
         if self._llm is None:
-            from app.rag.agentic.llm import AnthropicLLM
+            from app.rag.agentic.llm import get_llm
 
-            self._llm = AnthropicLLM(self._s)
+            self._llm = get_llm(self._s)
         return self._llm
 
     async def answer(

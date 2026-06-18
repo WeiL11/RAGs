@@ -48,12 +48,20 @@ class Settings(BaseSettings):
         "corrective",
     ]
 
-    # --- Generation (Claude) ---
-    # Default to Opus 4.8 (most capable). Set ANSWER_MODEL=claude-sonnet-4-6 or
-    # claude-haiku-4-5 to cut cost during heavy RAG iteration.
+    # --- Generation provider ---
+    # "anthropic" (Claude, paid) or "gemini" (free tier). The free HF Spaces deploy
+    # uses gemini; local dev defaults to anthropic.
+    llm_provider: str = "anthropic"
+
+    # Claude
     anthropic_api_key: str = ""
     answer_model: str = "claude-opus-4-8"
     judge_model: str = "claude-opus-4-8"  # RAGAS judge (M4)
+
+    # Gemini (free tier — Google AI Studio key)
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+
     max_tokens: int = 4096
     agent_max_iterations: int = 6  # cap tool-use rounds per query
 
@@ -132,6 +140,7 @@ def get_settings() -> Settings:
     s = Settings()
     # Support *_FILE secret sources without hardcoding keys.
     s.anthropic_api_key = _resolve_secret(s.anthropic_api_key, "ANTHROPIC_API_KEY_FILE")
+    s.gemini_api_key = _resolve_secret(s.gemini_api_key, "GEMINI_API_KEY_FILE")
     s.voyage_api_key = _resolve_secret(s.voyage_api_key, "VOYAGE_API_KEY_FILE")
     s.openai_api_key = _resolve_secret(s.openai_api_key, "OPENAI_API_KEY_FILE")
     s.api_auth_token = _resolve_secret(s.api_auth_token, "API_AUTH_TOKEN_FILE")

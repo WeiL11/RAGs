@@ -1,0 +1,225 @@
+# Gooaye RAG — Golden evaluation set (EDIT ME)
+# Fields per question: id, question, category, gold_episodes, reference
+# categories: lookup | opinion | aggregation | relationship | multi_hop | negative
+# gold_episodes = episodes that genuinely answer it (used for free retrieval scoring)
+#
+# The `#` comment under each entry is Claude's verification note + transcript evidence.
+# VERIFY THESE YOURSELF — edit the question/gold, or delete entries you don't want.
+# Flags:  [OK] looks good   [VERIFY] shallow/uncertain   [DROP?] likely broken   [NEW] proposed
+#
+# After editing:  cd backend && source .venv/bin/activate && python scripts/eval_retrieval.py
+
+- id: q01
+  question: "他們為什麼把小孩取名叫「諾亞」(Noah)？"
+  category: lookup
+  gold_episodes: [EP665]
+  reference: "Named after the character Noah in the German series Dark; not religious."
+  # [FIXED] original asked the PODCAST name origin — wrong. EP665 is the child's name.
+  # evidence EP665 @29:48: "諾亞就是因為那時候看一個德國影集叫做 Dark…角色叫 Noah…很多人以為在信教，沒有"
+
+- id: q02
+  question: "股癌對比特幣的看法是什麼？"
+  category: lookup
+  gold_episodes: [EP667]
+  reference: "Bitcoin discussed only in EP667."
+  # [OK] evidence EP667 @20:59: "比特幣的走勢…多少人真的相信比特幣的未來"
+
+- id: q03
+  question: "黃仁勳在節目中被提到了什麼？"
+  category: lookup
+  gold_episodes: [EP667]
+  reference: "Passing quip about Jensen Huang."
+  # [DROP?] only a one-line joke. EP667 @28:29: "孟公去搞黃仁勳點石成金的魔法真的很厲害"
+
+- id: q04
+  question: "他在節目裡聊到的減肥或健康話題是什麼？"
+  category: lookup
+  gold_episodes: [EP665]
+  reference: "Throwaway analogy, not a real topic."
+  # [DROP?] trivial. EP665 @3:22: "你現在為了要減肥或什麼的你也是拼的"
+
+- id: q05
+  question: "他對選擇權的建議是什麼？"
+  category: lookup
+  gold_episodes: [EP664]
+  reference: "Advised someone to use options."
+  # [VERIFY] real but brief anecdote. EP664 @44:58: "我建議他用選擇權比較快…現在他安靜多了"
+
+- id: q06
+  question: "股癌最近怎麼看美股？"
+  category: opinion
+  gold_episodes: [EP659, EP670, EP662]
+  reference: "Thinks the correction may be near done; bad news flushed out."
+  # [OK] EP659 @12:23: "美股崩成這樣為什麼美國的 CPU 類股都很強…去做佈局"
+
+- id: q07
+  question: "他對房地產的看法？"
+  category: opinion
+  gold_episodes: [EP671, EP664, EP658]
+  reference: "Views on the Taiwan real-estate cycle."
+  # [OK] EP671 @5:50: "到底臺灣的房地產是不是又要再一次開車這件事情呢"
+
+- id: q08
+  question: "他對通膨的看法？"
+  category: opinion
+  gold_episodes: [EP663, EP664]
+  reference: "Inflation environment mentioned."
+  # [VERIFY] shallow. EP663 @34:41: "跟通膨的環境加上大家都變有錢"
+
+- id: q09
+  question: "整理他對 AI 伺服器供應鏈的看法。"
+  category: aggregation
+  gold_episodes: [EP665, EP659, EP669]
+  reference: "High-end AI server demand, order crowding-out, valuation re-rating."
+  # [OK] EP665 @15:51: "切進去伺服器之類那整個估值就改變了"
+
+- id: q10
+  question: "他對記憶體類股的整體看法？"
+  category: aggregation
+  gold_episodes: [EP660, EP663, EP671]
+  reference: "Memory sector views across episodes."
+  # [OK] EP660 @15:41: "記憶體的時候也是一樣的狀態…跟大家聊說"
+
+- id: q11
+  question: "他對光通訊（光通）族群的看法整理。"
+  category: aggregation
+  gold_episodes: [EP663, EP661, EP669]
+  reference: "Optical-comms group views."
+  # [OK] EP663 @28:38: "一堆光通相關的東西…光通股結果還是直直落"
+
+- id: q12
+  question: "NVIDIA 在 AI 伺服器供應鏈扮演什麼角色？"
+  category: relationship
+  gold_episodes: [EP667, EP669, EP659]
+  reference: "NVIDIA central; VR-Rubin ramp drives the group."
+  # [OK] EP667 @12:05: "NVIDIA 有沒有要展示出什麼樣的"
+
+- id: q13
+  question: "機器人題材跟哪些方向或公司有關，他怎麼談？"
+  category: relationship
+  gold_episodes: [EP658, EP665, EP669]
+  reference: "Robotics theme and related names."
+  # [VERIFY] first EP658 hit is a joke ("換皮膚的女性機器人"); confirm other eps are substantive.
+
+- id: q14
+  question: "他對關稅議題的看法？"
+  category: multi_hop
+  gold_episodes: [EP660, EP665, EP669]
+  reference: "Tariffs and downstream impact."
+  # [VERIFY] brief. EP660 @16:20: "然後關稅嘛那所以呢下游會怎麼樣"
+
+- id: q15
+  question: "他對央行升息控管 / 政策的看法？"
+  category: multi_hop
+  gold_episodes: [EP671, EP666]
+  reference: "Central-bank tightening expectations."
+  # [FIXED] was a compound 'Japan market / BOJ'. EP671 @9:11: "央行還在講說他們的控管大概就到這邊"
+
+- id: q16
+  question: "他對黃金（金價）的看法？"
+  category: opinion
+  gold_episodes: [EP660, EP665]
+  reference: "(Likely invalid.)"
+  # [DROP?] WRONG — '黃金' here = '黃金時期' (golden era to buy a house), NOT the metal.
+  # EP660 @6:16: "那個買房的黃金時期很多人在那邊幹扣"
+
+- id: q17
+  question: "最近有哪些廣告商？"
+  category: lookup
+  gold_episodes: [EP658, EP667, EP668]
+  reference: "(Mostly sponsor ad.)"
+  # [DROP?] travel mentions are largely the NordVPN sponsor read, not his own content.
+  # EP658 @0:03: "暑假旅遊旺季…透過 NordVPN 切換不同地區比價"
+
+- id: q18
+  question: "他提到哪些 ETF？"
+  category: lookup
+  gold_episodes: [EP666, EP660, EP661]
+  reference: "Mentions e.g. IGV."
+  # [OK] EP666 @22:40: "像 IGV 這個 ETF 因為它裡面包的…"
+
+- id: q19
+  question: "他對電源管理 / 電源元件相關類股的看法？"
+  category: aggregation
+  gold_episodes: [EP662, EP667, EP670]
+  reference: "Power-component names (power cabinets / discrete components)."
+  # [OK] EP662 @28:26: "新的電源櫃用到很多 Power Components"
+
+- id: q20
+  question: "他對原油或石油價格的看法是什麼？"
+  category: negative
+  gold_episodes: []
+  reference: "Not discussed in this 14-episode corpus."
+  # [OK] negative — 原油/石油 absent from the corpus.
+
+- id: q21
+  question: "他最近一次推薦了什麼新興趣？"
+  category: negative
+  gold_episodes: []
+  reference: "Off-domain; not in the corpus."
+  # [OK] negative — 籃球 absent.
+
+# ===== NEW proposals to reach ~30 — well-covered topics. VERIFY & keep/delete. =====
+
+- id: q22
+  question: "他對美國軟體股 (software) 的看法？"
+  category: opinion
+  gold_episodes: [EP666, EP658, EP668]
+  reference: ""
+  # [NEW] 軟體 x86. EP666: "軟體股也出現了全面性的大爆色…Dario / Sam Altman…"
+
+- id: q23
+  question: "他怎麼談合理估值——什麼算便宜、什麼算貴？"
+  category: opinion
+  gold_episodes: [EP670, EP665, EP659]
+  reference: ""
+  # [NEW] 估值 x32. EP670: "估值的討論在市場上算是一個大哉問…什麼叫便宜、什麼叫合理價"
+
+- id: q24
+  question: "他怎麼看市場資金輪動 / 類股輪動？"
+  category: opinion
+  gold_episodes: [EP663, EP658, EP659]
+  reference: ""
+  # [NEW] 輪動 x16. EP663: "市場是會輪動，資金會輪流休息…這是比較健康的行情"
+
+- id: q25
+  question: "他講的『訂單排擠』效應是什麼意思？"
+  category: multi_hop
+  gold_episodes: [EP659, EP661, EP660]
+  reference: ""
+  # [NEW] 排擠 x10. EP659: "出現一些訂單排擠的可能性…跟 2017/2018 那個敘事有點像"
+
+- id: q26
+  question: "他怎麼看現在市場是不是泡沫或高點？"
+  category: opinion
+  gold_episodes: [EP660, EP664, EP659]
+  reference: ""
+  # [NEW] 泡沫 x9. EP660: "很多人在問這是不是高點泡沫，但真正的泡沫是你每天睡不到 4 小時…"
+
+- id: q27
+  question: "他對哪些公司的財報有觀察或評論？"
+  category: lookup
+  gold_episodes: [EP658, EP659, EP661]
+  reference: ""
+  # [NEW] 財報 x12. EP658: "…的財報…它意外的角出很多讓大家嚇到的資料"
+
+- id: q28
+  question: "什麼話題讓他在節目裡聊到紅酒？"
+  category: lookup
+  gold_episodes: [EP666, EP667, EP658]
+  reference: ""
+  # [NEW] 紅酒 x54 (recurring bit). EP666: "看人家喝紅酒…過於裝逼的…硬要說這什麼味道"
+
+- id: q29
+  question: "他對喝咖啡的習慣或看法？"
+  category: lookup
+  gold_episodes: [EP666, EP665, EP667]
+  reference: ""
+  # [NEW] 咖啡 x17 (recurring). EP666: "那個時間就是要去買一杯咖啡…慢慢去喝它"
+
+- id: q30
+  question: "記憶體漲價和 AI 需求之間的關係，他怎麼談？"
+  category: relationship
+  gold_episodes: [EP660, EP663, EP671]
+  reference: ""
+  # [NEW] combines 記憶體 + AI demand; verify the link is explicit in these eps.

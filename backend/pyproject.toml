@@ -30,6 +30,18 @@ embed-local = ["sentence-transformers>=3.0"]
 asr-mlx = ["mlx-whisper>=0.4"]            # local, Apple Silicon — free, default
 asr-faster = ["faster-whisper>=1.0"]      # local, CPU/CUDA — free, portable
 asr-openai = ["openai>=1.54"]             # Whisper API — paid
+# Free LLM provider (Gemini) for the public/free deploy
+gemini = ["google-genai>=1.0"]
+# Query-time only deps for the free Spaces deploy (no ASR / ingestion)
+serve = [
+    "qdrant-client>=1.12",
+    "jieba>=0.42",
+    "rank-bm25>=0.2.2",
+    "networkx>=3.4",
+    "sentence-transformers>=3.0",
+    "google-genai>=1.0",
+    "pyyaml>=6.0",
+]
 # M2/M3 — RAG strategies
 rag = [
     "anthropic>=0.40",

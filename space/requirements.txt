@@ -1,0 +1,2 @@
+gradio==4.44.1
+gooaye-rag-backend[serve] @ git+https://github.com/WeiL11/RAGs.git#subdirectory=backend

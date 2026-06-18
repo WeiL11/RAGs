@@ -4,6 +4,9 @@
 
 # Data — transcripts, vector store, graph. Never commit (and never commit audio).
 data/
+
+# Assembled Hugging Face Space deploy folder (built by space/prepare_space.sh)
+space_build/
 *.mp3
 *.m4a
 *.wav

@@ -62,9 +62,9 @@ class GraphRAGStrategy(BaseRAGStrategy):
     @property
     def llm(self) -> LLM:
         if self._llm is None:
-            from app.rag.agentic.llm import AnthropicLLM
+            from app.rag.agentic.llm import get_llm
 
-            self._llm = AnthropicLLM(self._s)
+            self._llm = get_llm(self._s)
         return self._llm
 
     def _retrieve(self, query: str) -> tuple[list[RetrievedContext], list[str]]:

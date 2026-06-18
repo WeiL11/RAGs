@@ -138,6 +138,17 @@ score them head-to-head.
   external graph/BM25 for concurrency, observability stack, retries/fallbacks/caching,
   larger governed eval set + CI gate, reranker + better entity resolution.
 
+## 6d. Free deployment (in progress)
+- Target: **Hugging Face Spaces (free, 16 GB) + Gradio UI**, answers via **free Gemini**.
+- Only Phase-2 serving is deployed; the prebuilt Qdrant index + transcripts ship with
+  the Space (no ASR on the server). Query embeddings = local BGE-M3 (needs the RAM).
+- **Provider seam** now pluggable: `LLM_PROVIDER=anthropic|gemini`, `get_llm()` in
+  `app/rag/agentic/llm.py`. `GeminiLLM` does MANUAL function calling and translates our
+  Claude-style block format ↔ Gemini Content/Part, so all 3 strategies (incl. agentic
+  tool-loop) work on Gemini. Unit-verified (26 tests).
+- Remaining: Gradio app (`space/app.py`), Space `requirements.txt`/`README.md`, ship the
+  index, set `GEMINI_API_KEY` secret + path env, push to the Space.
+
 ## 7. Update log
 - **2026-06-17** — M0–M3 built & mock-verified. Added free local path (mlx-whisper +
   BGE-M3, embedded Qdrant) so the corpus build needs no keys/money. Started first

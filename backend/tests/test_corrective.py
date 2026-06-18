@@ -16,6 +16,7 @@ class ScriptedLLM:
     """complete() returns queued grader/rewrite outputs; stream_turn() the answer."""
 
     model = "claude-sonnet-4-6"
+    grader_model = "claude-haiku-4-5"
 
     def __init__(self, completions: list[str], answer: str) -> None:
         self._completions = completions

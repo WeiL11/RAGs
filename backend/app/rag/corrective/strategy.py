@@ -54,9 +54,9 @@ class CorrectiveRAGStrategy(BaseRAGStrategy):
     @property
     def llm(self) -> LLM:
         if self._llm is None:
-            from app.rag.agentic.llm import AnthropicLLM
+            from app.rag.agentic.llm import get_llm
 
-            self._llm = AnthropicLLM(self._s)
+            self._llm = get_llm(self._s)
         return self._llm
 
     async def _grade(self, query: str, hits: list[RetrievedContext]) -> tuple[str, list[int], int, int]:
@@ -64,7 +64,7 @@ class CorrectiveRAGStrategy(BaseRAGStrategy):
             return "INCORRECT", [], 0, 0
         listing = "\n".join(f"[{i}] {h.text[:200]}" for i, h in enumerate(hits))
         comp = await self.llm.complete(
-            GRADE_SYSTEM, f"問題：{query}\n\n片段：\n{listing}", model=self._s.grader_model
+            GRADE_SYSTEM, f"問題：{query}\n\n片段：\n{listing}", model=self.llm.grader_model
         )
         verdict, ids = "AMBIGUOUS", list(range(len(hits)))
         try:
@@ -77,7 +77,7 @@ class CorrectiveRAGStrategy(BaseRAGStrategy):
 
     async def _rewrite(self, original: str, current: str) -> tuple[str, int, int]:
         comp = await self.llm.complete(
-            REWRITE_SYSTEM, f"原始問題：{original}\n目前查詢：{current}", model=self._s.grader_model
+            REWRITE_SYSTEM, f"原始問題：{original}\n目前查詢：{current}", model=self.llm.grader_model
         )
         new_q = comp.text.strip().splitlines()[0].strip() if comp.text.strip() else current
         return (new_q or current), comp.input_tokens, comp.output_tokens
@@ -131,7 +131,7 @@ class CorrectiveRAGStrategy(BaseRAGStrategy):
             elif kind == "final":
                 gen_in, gen_out = payload.input_tokens, payload.output_tokens
 
-        cost = _cost(self._s.grader_model, grade_in, grade_out) + _cost(
+        cost = _cost(self.llm.grader_model, grade_in, grade_out) + _cost(
             self.llm.model, gen_in, gen_out
         )
         yield StreamEvent(
@@ -139,7 +139,7 @@ class CorrectiveRAGStrategy(BaseRAGStrategy):
             trace={
                 "strategy": self.name,
                 "model": self.llm.model,
-                "grader_model": self._s.grader_model,
+                "grader_model": self.llm.grader_model,
                 "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
                 "tokens": {"input": grade_in + gen_in, "output": grade_out + gen_out},
                 "cost_usd": round(cost, 6),
