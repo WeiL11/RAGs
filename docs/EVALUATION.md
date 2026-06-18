@@ -98,5 +98,8 @@ python -m app.eval.run_eval        # (M4 — builds on the same dataset)
   brief stubs — fill them in before running Tier-2.
 - ✅ Tier-1 result (19 scored, k=8): **hybrid** best Recall@8 **0.87** (vector 0.75,
   keyword 0.68) and best per category; vector best MRR among single retrievers.
-- ⏳ Tier-2 RAGAS runner (`app/eval/run_eval.py`) — needs a key; that's M4.
+- ✅ Tier-2 runner (`app/eval/run_eval.py`, M4) — runs each strategy over the golden
+  set, scores answers with a one-call LLM judge (faithfulness/correctness/relevance,
+  free-tier friendly via `--sample`), and saves a scorecard. Needs a key.
+  Run: `python -m app.eval.run_eval --sample 6 --strategies corrective,agentic`
 - 🔜 Grow to ~30 questions and have a human verify gold + references.
