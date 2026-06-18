@@ -7,7 +7,7 @@ OUT="${1:-$ROOT/space_build}"
 
 rm -rf "$OUT"
 mkdir -p "$OUT/data"
-cp "$ROOT/space/app.py" "$ROOT/space/requirements.txt" "$ROOT/space/README.md" "$OUT/"
+cp "$ROOT/space/main.py" "$ROOT/space/requirements.txt" "$ROOT/space/README.md" "$OUT/"
 cp -R "$ROOT/data/transcripts" "$OUT/data/transcripts"
 cp -R "$ROOT/data/qdrant_local" "$OUT/data/qdrant_local"
 if [ -f "$ROOT/data/graph.json" ]; then cp "$ROOT/data/graph.json" "$OUT/data/graph.json"; fi
