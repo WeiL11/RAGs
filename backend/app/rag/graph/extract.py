@@ -163,11 +163,11 @@ class GroqExtractor:
         import time
 
         last_err: Exception | None = None
-        for attempt in range(3):
+        for attempt in range(6):
             try:
                 resp = self._client.chat.completions.create(
                     model=self.model,
-                    max_tokens=4096,
+                    max_tokens=2048,  # output reservation counts toward TPM — keep modest
                     response_format={"type": "json_object"},
                     messages=[
                         {"role": "system", "content": _GEMINI_SYSTEM},
@@ -177,7 +177,10 @@ class GroqExtractor:
                 return _parse_extraction(resp.choices[0].message.content)
             except Exception as exc:  # noqa: BLE001
                 last_err = exc
-                time.sleep(2 * (attempt + 1))
+                msg = str(exc)
+                if "413" in msg or "too large" in msg.lower():
+                    raise  # caller must send a smaller window
+                time.sleep(20 if ("429" in msg or "rate_limit" in msg) else 3 * (attempt + 1))
         raise RuntimeError(f"Groq extraction failed after retries: {last_err}")
 
 

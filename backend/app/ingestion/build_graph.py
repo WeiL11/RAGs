@@ -41,9 +41,18 @@ def build_graph(
     if limit:
         paths = paths[:limit]
 
-    # Extract ONCE per episode (free-tier friendly: ~1 request/episode instead of
-    # hundreds). Mention/relation provenance is recovered by matching entity names to
-    # the chunk they appear in, so we keep chunk-level timestamps.
+    # Window each episode to fit the LLM's tokens-per-minute limit (Groq free tier ≈ 12k
+    # TPM → a full ~20k-char episode is too big for one request). Extract per window,
+    # throttle GLOBALLY between calls, merge + de-dupe. Mention provenance is recovered by
+    # matching entity names to the chunk they appear in.
+    import os
+    import time
+
+    win = int(os.getenv("GRAPH_WINDOW_CHARS", "6000"))
+    max_win = int(os.getenv("GRAPH_MAX_WINDOWS", "2"))
+    throttle = float(os.getenv("GRAPH_THROTTLE_S", "33"))
+    calls = 0
+
     for path in paths:
         doc = TranscriptDoc.load(path)
         chunks = chunk_segments(
@@ -68,10 +77,36 @@ def build_graph(
                 "end_s": c.end_s,
             }
 
-        result = extractor.extract(doc.full_text[:20000])
-        ents = result.get("entities", [])
-        rels = result.get("relations", [])
-        print(f"[graph] {doc.episode_id}: {len(ents)} entities, {len(rels)} relations", flush=True)
+        text = doc.full_text
+        windows = [text[i : i + win] for i in range(0, len(text), win)][:max_win] or [text]
+
+        seen_e: set[str] = set()
+        seen_r: set[tuple] = set()
+        ents: list[dict] = []
+        rels: list[dict] = []
+        for w in windows:
+            if not w.strip():
+                continue
+            if calls:
+                time.sleep(throttle)
+            calls += 1
+            try:
+                r = extractor.extract(w)
+            except Exception as exc:  # noqa: BLE001 — quota/rate errors: skip, keep the rest
+                print(f"[skip] {doc.episode_id}: {str(exc)[:120]}", flush=True)
+                break
+            for e in r.get("entities", []):
+                k = (e.get("name") or "").strip().lower()
+                if k and k not in seen_e:
+                    seen_e.add(k)
+                    ents.append(e)
+            for rel in r.get("relations", []):
+                k = (rel.get("subject", ""), rel.get("relation", ""), rel.get("object", ""))
+                if all(k) and k not in seen_r:
+                    seen_r.add(k)
+                    rels.append(rel)
+        print(f"[graph] {doc.episode_id}: {len(ents)} entities, {len(rels)} relations "
+              f"({len(windows)} window(s))", flush=True)
 
         for ent in ents:
             store.add_entity(ent["name"], ent.get("type", "other"), _mention(_chunk_for(ent["name"])))
@@ -82,6 +117,7 @@ def build_graph(
             store.add_relation(
                 rel["subject"], rel["relation"], rel["object"], doc.episode_id, c.text if c else ""
             )
+        store.save()  # incremental: persist after every episode so a later quota error can't lose progress
 
     store.save()
     print(f"[ok] graph: {store.num_nodes} nodes, {store.num_edges} edges → {store.path}")
