@@ -150,8 +150,41 @@ class GeminiExtractor:
         raise RuntimeError(f"Gemini extraction failed after retries: {last_err}")
 
 
+class GroqExtractor:
+    """Free entity/relation extraction via Groq JSON mode (OpenAI-compatible)."""
+
+    def __init__(self, settings) -> None:  # type: ignore[no-untyped-def]
+        from groq import Groq  # lazy
+
+        self._client = Groq(api_key=settings.groq_api_key or None)
+        self.model = settings.groq_model
+
+    def extract(self, text: str) -> dict[str, Any]:
+        import time
+
+        last_err: Exception | None = None
+        for attempt in range(3):
+            try:
+                resp = self._client.chat.completions.create(
+                    model=self.model,
+                    max_tokens=4096,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": _GEMINI_SYSTEM},
+                        {"role": "user", "content": text},
+                    ],
+                )
+                return _parse_extraction(resp.choices[0].message.content)
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+                time.sleep(2 * (attempt + 1))
+        raise RuntimeError(f"Groq extraction failed after retries: {last_err}")
+
+
 def get_extractor(settings):  # type: ignore[no-untyped-def]
     """Pick the extractor matching the configured LLM provider."""
     if settings.llm_provider == "gemini":
         return GeminiExtractor(settings)
+    if settings.llm_provider == "groq":
+        return GroqExtractor(settings)
     return ClaudeExtractor(settings)

@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
 
+    # Groq (generous free tier — console.groq.com key). OpenAI-compatible.
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+
     max_tokens: int = 4096
     agent_max_iterations: int = 6  # cap tool-use rounds per query
 
@@ -142,6 +146,7 @@ def get_settings() -> Settings:
     # Support *_FILE secret sources without hardcoding keys.
     s.anthropic_api_key = _resolve_secret(s.anthropic_api_key, "ANTHROPIC_API_KEY_FILE")
     s.gemini_api_key = _resolve_secret(s.gemini_api_key, "GEMINI_API_KEY_FILE")
+    s.groq_api_key = _resolve_secret(s.groq_api_key, "GROQ_API_KEY_FILE")
     s.voyage_api_key = _resolve_secret(s.voyage_api_key, "VOYAGE_API_KEY_FILE")
     s.openai_api_key = _resolve_secret(s.openai_api_key, "OPENAI_API_KEY_FILE")
     s.api_auth_token = _resolve_secret(s.api_auth_token, "API_AUTH_TOKEN_FILE")

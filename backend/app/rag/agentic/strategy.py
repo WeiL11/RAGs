@@ -35,6 +35,8 @@ _PRICING = {
     "gemini-2.5-flash": (0.0, 0.0),  # free tier
     "gemini-2.0-flash": (0.0, 0.0),  # free tier
     "gemini-2.5-flash-lite": (0.0, 0.0),
+    "llama-3.3-70b-versatile": (0.0, 0.0),  # Groq free tier
+    "llama-3.1-8b-instant": (0.0, 0.0),
 }
 
 

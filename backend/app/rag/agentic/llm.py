@@ -52,9 +52,11 @@ class LLM(Protocol):
 
 
 def get_llm(settings) -> LLM:  # type: ignore[no-untyped-def]
-    """Pick the adapter from settings.llm_provider ('anthropic' | 'gemini')."""
+    """Pick the adapter from settings.llm_provider ('anthropic' | 'gemini' | 'groq')."""
     if settings.llm_provider == "gemini":
         return GeminiLLM(settings)
+    if settings.llm_provider == "groq":
+        return GroqLLM(settings)
     return AnthropicLLM(settings)
 
 
@@ -271,4 +273,127 @@ class GeminiLLM:
             text=resp.text or "",
             input_tokens=(getattr(u, "prompt_token_count", 0) or 0) if u else 0,
             output_tokens=(getattr(u, "candidates_token_count", 0) or 0) if u else 0,
+        )
+
+
+class GroqLLM:
+    """Groq (free tier) via the OpenAI-compatible SDK, with manual tool calling.
+
+    Translates the internal Anthropic block shape ↔ OpenAI chat messages so all three
+    strategies (incl. the agentic tool-loop) run on Groq.
+    """
+
+    def __init__(self, settings) -> None:  # type: ignore[no-untyped-def]
+        from groq import AsyncGroq  # lazy
+
+        self._client = AsyncGroq(api_key=settings.groq_api_key or None)
+        self.model = settings.groq_model
+        self.grader_model = settings.groq_model
+        self.max_tokens = settings.max_tokens
+
+    def _tools(self, tools: list[dict[str, Any]]):
+        if not tools:
+            return None
+        return [
+            {"type": "function", "function": {
+                "name": t["name"], "description": t.get("description", ""),
+                "parameters": t["input_schema"]}}
+            for t in tools
+        ]
+
+    def _messages(self, system: str, messages: list[dict[str, Any]]):
+        import json
+
+        out: list[dict[str, Any]] = []
+        if system:
+            out.append({"role": "system", "content": system})
+        for m in messages:
+            role, c = m["role"], m.get("content")
+            if isinstance(c, str):
+                out.append({"role": role, "content": c})
+                continue
+            blocks = c or []
+            if any(_btype(b) == "tool_result" for b in blocks):
+                for b in blocks:
+                    if _btype(b) == "tool_result":
+                        out.append({"role": "tool", "tool_call_id": _bget(b, "tool_use_id"),
+                                    "content": str(_bget(b, "content", ""))})
+            else:
+                text = "".join(_bget(b, "text", "") for b in blocks if _btype(b) == "text")
+                tcs = [
+                    {"id": _bget(b, "id"), "type": "function",
+                     "function": {"name": _bget(b, "name"),
+                                  "arguments": json.dumps(_bget(b, "input", {}), ensure_ascii=False)}}
+                    for b in blocks if _btype(b) == "tool_use"
+                ]
+                msg: dict[str, Any] = {"role": "assistant", "content": text or None}
+                if tcs:
+                    msg["tool_calls"] = tcs
+                out.append(msg)
+        return out
+
+    async def stream_turn(self, system, messages, tools):  # type: ignore[no-untyped-def]
+        import json
+
+        kwargs: dict[str, Any] = dict(
+            model=self.model, messages=self._messages(system, messages),
+            max_tokens=self.max_tokens, stream=True,
+        )
+        gt = self._tools(tools)
+        if gt:
+            kwargs["tools"] = gt
+        stream = await self._client.chat.completions.create(**kwargs)
+
+        text_parts: list[str] = []
+        acc: dict[int, dict[str, Any]] = {}
+        usage = None
+        async for chunk in stream:
+            ch = chunk.choices[0] if chunk.choices else None
+            if ch and ch.delta:
+                if ch.delta.content:
+                    yield ("delta", ch.delta.content)
+                    text_parts.append(ch.delta.content)
+                for tc in (ch.delta.tool_calls or []):
+                    e = acc.setdefault(tc.index, {"id": None, "name": None, "args": ""})
+                    if tc.id:
+                        e["id"] = tc.id
+                    if tc.function:
+                        if tc.function.name:
+                            e["name"] = tc.function.name
+                        if tc.function.arguments:
+                            e["args"] += tc.function.arguments
+            xg = getattr(chunk, "x_groq", None)
+            if xg and getattr(xg, "usage", None):
+                usage = xg.usage
+
+        text = "".join(text_parts)
+        tool_uses = []
+        for i in sorted(acc):
+            e = acc[i]
+            try:
+                inp = json.loads(e["args"]) if e["args"] else {}
+            except Exception:
+                inp = {}
+            tool_uses.append(ToolUse(id=e["id"] or f"groq_{i}", name=e["name"] or "", input=inp))
+        raw: list[dict[str, Any]] = []
+        if text:
+            raw.append({"type": "text", "text": text})
+        raw += [{"type": "tool_use", "id": tu.id, "name": tu.name, "input": tu.input} for tu in tool_uses]
+        yield ("final", TurnResult(
+            text=text, tool_uses=tool_uses, raw_content=raw,
+            stop_reason="tool_use" if tool_uses else "end_turn",
+            input_tokens=(getattr(usage, "prompt_tokens", 0) or 0) if usage else 0,
+            output_tokens=(getattr(usage, "completion_tokens", 0) or 0) if usage else 0,
+        ))
+
+    async def complete(self, system, user, model=None):  # type: ignore[no-untyped-def]
+        resp = await self._client.chat.completions.create(
+            model=model or self.model, max_tokens=1024,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        )
+        u = getattr(resp, "usage", None)
+        return Completion(
+            text=resp.choices[0].message.content or "",
+            input_tokens=(getattr(u, "prompt_tokens", 0) or 0) if u else 0,
+            output_tokens=(getattr(u, "completion_tokens", 0) or 0) if u else 0,
         )
