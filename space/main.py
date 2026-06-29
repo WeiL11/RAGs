@@ -8,7 +8,9 @@ backend so the shipped index + Gemini provider are picked up.
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-os.environ.setdefault("LLM_PROVIDER", "gemini")
+os.environ.setdefault("LLM_PROVIDER", "groq")
+# Keep the query-suggestion feature free on the Space (heuristic, no LLM call).
+os.environ.setdefault("SUGGEST_USE_LLM", "false")
 os.environ.setdefault("EMBED_PROVIDER", "local")
 os.environ.setdefault("QDRANT_MODE", "local")
 os.environ.setdefault("QDRANT_PATH", os.path.join(HERE, "data", "qdrant_local"))
@@ -25,10 +27,17 @@ import gradio as gr  # noqa: E402
 
 from app.config import get_settings  # noqa: E402
 from app.rag.registry import build_default_registry  # noqa: E402
+from app.rag.suggest import QuerySuggester  # noqa: E402
 
 settings = get_settings()
 registry = build_default_registry(settings)
+suggester = QuerySuggester(settings)
 STRATEGIES = registry.names()
+
+
+def _provider_key(s) -> str:
+    return {"groq": s.groq_api_key, "gemini": s.gemini_api_key,
+            "anthropic": s.anthropic_api_key}.get(s.llm_provider, "")
 
 
 def _ts(s: float | None) -> str:
@@ -40,8 +49,20 @@ async def respond(message: str, history, strategy: str):
     if not (message or "").strip():
         yield "請輸入問題。"
         return
-    if not settings.gemini_api_key:
-        yield "⚠️ 尚未設定 GEMINI_API_KEY（請在 Space 的 Settings → Secrets 加入）。"
+
+    # Next-step prediction: if the question is too vague, offer the top-3 likely questions
+    # instead of answering. Retrieval-grounded; free (heuristic) on the Space.
+    try:
+        sug = await suggester.suggest(message)
+    except Exception:  # noqa: BLE001
+        sug = None
+    if sug and sug.ambiguous and sug.suggestions:
+        opts = "\n".join(f"{i}. {s.question}" for i, s in enumerate(sug.suggestions, 1))
+        yield f"🤔 你的問題有點籠統（{sug.reason}），你想問的是？\n\n{opts}\n\n（輸入更完整的問題，我就會直接回答）"
+        return
+
+    if not _provider_key(settings):
+        yield f"⚠️ 尚未設定 {settings.llm_provider.upper()}_API_KEY（請在 Space 的 Settings → Secrets 加入）。"
         return
     try:
         strat = registry.get(strategy)

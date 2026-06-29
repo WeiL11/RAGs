@@ -70,6 +70,13 @@ class Settings(BaseSettings):
     max_tokens: int = 4096
     agent_max_iterations: int = 6  # cap tool-use rounds per query
 
+    # Query suggestion / next-step prediction: when a question looks vague, propose the
+    # top-3 likely questions (grounded in retrieval). Free heuristic fallback if no LLM.
+    suggest_enabled: bool = True
+    suggest_use_llm: bool = True
+    suggest_min_len: int = 8  # queries shorter than this (chars) are treated as vague
+    suggest_score_threshold: float = 0.5  # top retrieval score below this = vague
+
     # Corrective RAG (M-extra): cheap model grades retrieved passages; on weak
     # results, rewrite the query and re-retrieve up to crag_max_rounds times.
     grader_model: str = "claude-haiku-4-5"
