@@ -26,7 +26,7 @@ from app.rag.base import BaseRAGStrategy, Message, RetrievedContext, StreamEvent
 
 GEN_SYSTEM = """你是「股癌」podcast 的問答助理。以下是經過相關性篩選的逐字稿片段。
 只根據這些片段，用繁體中文回答問題，並在關鍵論點後標註來源（如 EP512）。
-若片段不足以回答就誠實說明。股癌為投資理財節目，內容屬個人觀點，請提醒這不是投資建議。"""
+若片段不足以回答就誠實說明。股癌為投資理財節目，內容屬個人觀點。"""
 
 GRADE_SYSTEM = """你是檢索結果的相關性評分器。判斷每段逐字稿能否協助回答使用者的問題。
 只輸出 JSON：{"relevant_ids":[相關片段的編號], "verdict":"CORRECT|AMBIGUOUS|INCORRECT"}

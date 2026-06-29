@@ -60,6 +60,9 @@ def _ts(s: float | None) -> str:
 # agentic is unreliable on Groq's tool-calling, so the demo is fixed to corrective.
 BEST_STRATEGY = "corrective" if "corrective" in STRATEGIES else STRATEGIES[0]
 
+# Fixed disclaimer appended to every answer (not LLM-generated, so it's consistent).
+DISCLAIMER = "⚠️ 以上為節目個人觀點整理，非投資建議。"
+
 
 async def respond(message: str, history):
     if not (message or "").strip():
@@ -97,10 +100,11 @@ async def respond(message: str, history):
         yield f"⚠️ {type(exc).__name__}: {exc}"
         return
 
+    extras = ""
     if sources:
         lines = "\n".join(f"- {c.episode_id} @ {_ts(c.start_s)}" for c in sources[:5])
-        answer += f"\n\n---\n**來源 Sources**\n{lines}"
-    yield answer or "（沒有產生答案）"
+        extras = f"\n\n---\n**來源 Sources**\n{lines}"
+    yield (answer or "（沒有產生答案）") + extras + f"\n\n_{DISCLAIMER}_"
 
 
 _DESC = (

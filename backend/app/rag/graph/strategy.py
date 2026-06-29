@@ -22,7 +22,7 @@ from app.rag.base import BaseRAGStrategy, Message, RetrievedContext, StreamEvent
 
 SYSTEM_PROMPT = """你是「股癌」podcast 的問答助理。以下提供從知識圖譜檢索到的相關片段與實體關係。
 請只根據這些內容，用繁體中文回答問題，並在關鍵論點後標註來源（如 EP512）。
-若資訊不足就誠實說明。股癌為投資理財節目，內容屬個人觀點，請提醒這不是投資建議。"""
+若資訊不足就誠實說明。股癌為投資理財節目，內容屬個人觀點。"""
 
 
 def _tokenize(query: str) -> list[str]:
