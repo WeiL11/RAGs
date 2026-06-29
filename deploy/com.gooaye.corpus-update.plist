@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd agent: run the Gooaye corpus auto-update once a day at 09:00.
+
+  Install (macOS):
+    cp deploy/com.gooaye.corpus-update.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.gooaye.corpus-update.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.gooaye.corpus-update.plist
+
+  Notes:
+    - Edit the two absolute paths below if your repo lives elsewhere.
+    - launchd only fires while the Mac is awake; if it was asleep at 09:00 the job
+      runs at the next wake (RunAtLoad is false, so loading it won't run it now).
+    - The job is free and local (Whisper + BGE-M3). Logs go to data/update.log.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.gooaye.corpus-update</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/weilee/Downloads/MyClaude/gooaye-rag/backend/scripts/daily_update.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/weilee/Downloads/MyClaude/gooaye-rag/data/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/weilee/Downloads/MyClaude/gooaye-rag/data/launchd.err.log</string>
+</dict>
+</plist>

@@ -46,6 +46,7 @@ class Settings(BaseSettings):
         "agentic",
         "graph",
         "corrective",
+        "hybrid_rerank",
     ]
 
     # --- Generation provider ---
@@ -84,6 +85,13 @@ class Settings(BaseSettings):
     grader_model: str = "claude-haiku-4-5"
     crag_k: int = 8
     crag_max_rounds: int = 3
+
+    # Hybrid + Rerank RAG: fuse vector + keyword (RRF), then re-order the candidates
+    # with a local cross-encoder (free, no key). hybrid_k = candidates pulled per
+    # retriever before fusion; rerank_top_k = passages kept after reranking.
+    hybrid_k: int = 12
+    rerank_top_k: int = 6
+    rerank_model: str = "BAAI/bge-reranker-v2-m3"  # multilingual, strong on zh-Hant
 
     # --- Embeddings ---
     embed_provider: str = "voyage"  # "voyage" | "openai" | "local"

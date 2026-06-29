@@ -16,8 +16,28 @@ answer-writing step uses a paid LLM.
 - **Auto-updates** to the newest episodes: an `update_corpus` workflow
   (`scripts/update_corpus.py`) pulls the latest from the RSS feed, transcribes and
   indexes them, and trims the window so the corpus stays focused on recent episodes.
+- **Daily, unattended (optional):** a launchd agent runs the update once a day — free and
+  local. See [Daily auto-update](#daily-auto-update-optional).
 - The app and CLI report the covered recent-episode range via a `corpus_range()` status
   helper, so it's always clear which episodes an answer can draw from.
+
+### Daily auto-update (optional)
+
+The update logic ([`scripts/update_corpus.py`](backend/scripts/update_corpus.py)) is
+idempotent — days with no new episode are a no-op; new episodes are transcribed (local
+Whisper) and indexed (BGE-M3), all **free and offline**. To run it every day, install the
+launchd agent:
+
+```bash
+cp deploy/com.gooaye.corpus-update.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.gooaye.corpus-update.plist   # runs daily at 09:00
+bash backend/scripts/daily_update.sh --status                          # check current range
+```
+
+Logs append to `data/update.log`. Caveats: launchd only fires while the Mac is awake; for
+truly unattended cloud updates you'd need a small always-on host (there are no free
+Apple-Silicon CI runners for local Whisper), and refreshing the deployed Space means
+pushing the new index to it — a separate, automatable step.
 
 📊 Diagrams: [system structure](docs/system-structure.svg) · [the 3 RAG strategies](docs/rag-strategies.svg)
 📖 Deep dives: [docs/SYSTEM.md](docs/SYSTEM.md) (architecture & milestones) ·
@@ -39,7 +59,7 @@ cited answer. Retrieval is free and local; only the final generation costs money
 > (BGE-M3, ~0.6B) runs free on your Mac for *search*; the **generative LLM** only writes
 > the *answer* — and is optional (retrieval-only, or a local LLM, both $0).
 
-## The three RAG strategies
+## The RAG strategies
 
 All three implement the same contract ([`backend/app/rag/base.py`](backend/app/rag/base.py))
 and register in [`registry.py`](backend/app/rag/registry.py) — adding one never touches
@@ -95,6 +115,21 @@ answering. **Best for** weak / ambiguous first hits. **Medium cost** (grader + a
 | **Agentic** | LLM drives a tool loop (vector + keyword), looping until satisfied | multi-step, open-ended | higher (2–6 calls) |
 | **Graph** | link entities → traverse knowledge graph → synthesize | relationships, cross-episode aggregation | lowest (1 call) |
 | **Corrective (CRAG)** | retrieve → grade → rewrite & re-retrieve if weak | weak / ambiguous first hits | medium (grader + answer) |
+| **Hybrid + Rerank** | fuse vector + keyword (RRF) → local cross-encoder rerank → answer | precision on top of the best retriever; **$0 extra** | lowest (1 call) |
+
+### Hybrid + Rerank — fuse then re-order
+
+```
+Query ─┬─ vector search ─┐
+       └─ keyword search ─┴─ RRF fuse → 🎯 cross-encoder rerank (local) → top-k → 🧠 answer
+```
+
+A bi-encoder (BGE-M3) retrieves fast but never sees the query and a passage *together*;
+a **cross-encoder** (`bge-reranker-v2-m3`, local & free) scores each (query, passage) pair
+jointly and re-orders the fused candidates. The retrieval scorecard already showed hybrid
+beats either retriever alone — reranking is the cheapest precision win on top, adding **no
+LLM calls** (🎯 is a local model, not an API). The reranker model (~0.6 GB) downloads once
+on first use. See [`hybrid_rerank/strategy.py`](backend/app/rag/hybrid_rerank/strategy.py).
 
 ## Performance / results
 
@@ -330,7 +365,7 @@ context composition (🟡); the browser/DOM-action and UI-path→API-mapping pie
 scope here (⬜).
 
 ## Status
-M0–M3 complete + Corrective RAG; 3 strategies ready. **EP658–EP671 (14 episodes)** built
+M0–M3 complete + Corrective RAG + Hybrid-Rerank RAG; 4 strategies ready. **EP658–EP671 (14 episodes)** built
 and searchable for free, auto-updating to the most recent episodes. Tier-1 retrieval
 scorecard done (hybrid wins). Next: full answer-quality comparison (M4) once LLM budget
 allows.

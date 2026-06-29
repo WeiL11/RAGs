@@ -59,6 +59,10 @@ def build_default_registry(settings: Settings | None = None) -> StrategyRegistry
             from app.rag.graph.strategy import GraphRAGStrategy
 
             registry.register(GraphRAGStrategy(settings))
+        elif name == "hybrid_rerank":
+            from app.rag.hybrid_rerank.strategy import HybridRerankRAGStrategy
+
+            registry.register(HybridRerankRAGStrategy(settings))
         elif name == "corrective":
             from app.rag.corrective.strategy import CorrectiveRAGStrategy
 
