@@ -9,8 +9,8 @@ import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 os.environ.setdefault("LLM_PROVIDER", "gemini")  # primary; groq is the auto-fallback ("option B")
-# Keep the query-suggestion feature free on the Space (heuristic, no LLM call).
-os.environ.setdefault("SUGGEST_USE_LLM", "false")
+# Use the LLM to phrase the top-3 suggestions as clear questions (only fires on vague queries).
+os.environ.setdefault("SUGGEST_USE_LLM", "true")
 os.environ.setdefault("EMBED_PROVIDER", "local")
 os.environ.setdefault("QDRANT_MODE", "local")
 os.environ.setdefault("QDRANT_PATH", os.path.join(HERE, "data", "qdrant_local"))
@@ -64,22 +64,8 @@ BEST_STRATEGY = "corrective" if "corrective" in STRATEGIES else STRATEGIES[0]
 DISCLAIMER = "⚠️ 以上為節目個人觀點整理，非投資建議。"
 
 
-async def respond(message: str, history):
-    if not (message or "").strip():
-        yield "請輸入問題。"
-        return
-
-    # Next-step prediction: if the question is too vague, offer the top-3 likely questions
-    # instead of answering. Retrieval-grounded; free (heuristic) on the Space.
-    try:
-        sug = await suggester.suggest(message)
-    except Exception:  # noqa: BLE001
-        sug = None
-    if sug and sug.ambiguous and sug.suggestions:
-        opts = "\n".join(f"{i}. {s.question}" for i, s in enumerate(sug.suggestions, 1))
-        yield f"🤔 你的問題有點籠統（{sug.reason}），你想問的是？\n\n{opts}\n\n（輸入更完整的問題，我就會直接回答）"
-        return
-
+async def _answer(message: str):
+    """Answer a DEFINITE question (no ambiguity check). Yields accumulating text."""
     if not _provider_key(settings):
         yield f"⚠️ 尚未設定 {settings.llm_provider.upper()}_API_KEY（請在 Space 的 Settings → Secrets 加入）。"
         return
@@ -135,26 +121,72 @@ def load_transcript(ep: str) -> str:
     return f"#### {ep} · {doc.publish_date} · {len(doc.segments)} 段\n\n" + "\n\n".join(blocks)
 
 
-async def _chat(message, history):
+N_SUGG = 3
+
+
+async def on_submit(message, history):
+    """Submit: vague query → show clickable suggestion buttons; else answer directly."""
+    history = history or []
+    hide = [gr.update(visible=False) for _ in range(N_SUGG)]
     if not (message or "").strip():
-        yield history or [], ""
+        yield history, "", [], *hide
         return
-    history = (history or []) + [
-        {"role": "user", "content": message},
-        {"role": "assistant", "content": ""},
-    ]
-    yield history, ""
-    async for partial in respond(message, history[:-1]):
+    try:
+        sug = await suggester.suggest(message)
+    except Exception:  # noqa: BLE001
+        sug = None
+    if sug and sug.ambiguous and sug.suggestions:
+        qs = [s.question for s in sug.suggestions[:N_SUGG]]
+        history = history + [
+            {"role": "user", "content": message},
+            {"role": "assistant",
+             "content": "🤔 你的問題有點籠統。你想問的是以下哪一個？**點一下按鈕**選擇，或自己輸入更完整的問題："},
+        ]
+        btns = [gr.update(visible=True, value=qs[i]) if i < len(qs) else gr.update(visible=False)
+                for i in range(N_SUGG)]
+        yield history, "", qs, *btns
+        return
+    # definite question → answer it
+    history = history + [{"role": "user", "content": message}, {"role": "assistant", "content": ""}]
+    yield history, "", [], *hide
+    async for partial in _answer(message):
         history[-1]["content"] = partial
-        yield history, ""
+        yield history, "", [], *hide
+
+
+def make_pick(i: int):
+    """A click handler for suggestion button i: ask THAT question (shown in the chat)."""
+
+    async def _pick(qs, history):
+        hide = [gr.update(visible=False) for _ in range(N_SUGG)]
+        if not qs or i >= len(qs):
+            yield history or [], *hide
+            return
+        q = qs[i]
+        history = (history or []) + [
+            {"role": "user", "content": q}, {"role": "assistant", "content": ""},
+        ]
+        yield history, *hide
+        async for partial in _answer(q):
+            history[-1]["content"] = partial
+            yield history, *hide
+
+    return _pick
 
 
 with gr.Blocks(title="股癌 Gooaye — Podcast RAG", fill_height=True) as demo:
     gr.Markdown(f"# 股癌 Gooaye — Podcast RAG\n\n{_DESC}")
     chatbot = gr.Chatbot(height=400, show_label=False)
-    box = gr.Textbox(placeholder="例如：股癌最近怎麼看美股？（打模糊的詞會給你建議）", show_label=False, autofocus=True)
+    box = gr.Textbox(placeholder="例如：股癌最近怎麼看美股？（打模糊的詞，會跳出建議讓你點選）",
+                     show_label=False, autofocus=True)
+    sugg_state = gr.State([])
+    with gr.Row():
+        sugg_btns = [gr.Button(visible=False, size="sm") for _ in range(N_SUGG)]
     gr.Examples(["股癌最近怎麼看美股？", "他對記憶體類股的看法？", "他對比特幣的看法？"], inputs=box)
-    box.submit(_chat, [box, chatbot], [chatbot, box])
+
+    box.submit(on_submit, [box, chatbot], [chatbot, box, sugg_state, *sugg_btns])
+    for _i, _b in enumerate(sugg_btns):
+        _b.click(make_pick(_i), [sugg_state, chatbot], [chatbot, *sugg_btns])
 
     with gr.Accordion("📜 逐字稿檢視（核對時間軸 — 選了集數才載入，避免拖慢）", open=False):
         ep_dd = gr.Dropdown(_EP_LIST, label="選擇集數", value=None)
