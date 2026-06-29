@@ -52,7 +52,12 @@ def _ts(s: float | None) -> str:
     return f"{int(s // 60)}:{int(s % 60):02d}"
 
 
-async def respond(message: str, history, strategy: str):
+# Best strategy by a small eval: corrective (faithfulness 0.93 / relevance 0.97).
+# agentic is unreliable on Groq's tool-calling, so the demo is fixed to corrective.
+BEST_STRATEGY = "corrective" if "corrective" in STRATEGIES else STRATEGIES[0]
+
+
+async def respond(message: str, history):
     if not (message or "").strip():
         yield "請輸入問題。"
         return
@@ -71,11 +76,7 @@ async def respond(message: str, history, strategy: str):
     if not _provider_key(settings):
         yield f"⚠️ 尚未設定 {settings.llm_provider.upper()}_API_KEY（請在 Space 的 Settings → Secrets 加入）。"
         return
-    try:
-        strat = registry.get(strategy)
-    except KeyError:
-        yield f"未知策略：{strategy}"
-        return
+    strat = registry.get(BEST_STRATEGY)
 
     answer, sources = "", []
     try:
@@ -102,14 +103,12 @@ demo = gr.ChatInterface(
     fn=respond,
     title="股癌 Gooaye — Podcast RAG",
     description=(f"📚 涵蓋最近集數：{CORPUS}。\n" if CORPUS else "")
+    + "🏆 目前最佳方法：**Corrective RAG**（小樣本評估：忠實度 0.93、相關性 0.97；agentic 在 Groq 上的 function-calling 不穩）。\n"
     + "問股癌 podcast 的內容，AI 依逐字稿回答並標註來源。內容為節目個人觀點，非投資建議。",
-    additional_inputs=[
-        gr.Dropdown(choices=STRATEGIES, value=STRATEGIES[0], label="RAG strategy")
-    ],
     examples=[
-        ["股癌最近怎麼看美股？", STRATEGIES[0]],
-        ["他對記憶體類股的看法？", STRATEGIES[0]],
-        ["他對比特幣的看法？", STRATEGIES[0]],
+        "股癌最近怎麼看美股？",
+        "他對記憶體類股的看法？",
+        "他對比特幣的看法？",
     ],
 )
 
