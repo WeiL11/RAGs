@@ -49,9 +49,11 @@ class Settings(BaseSettings):
     ]
 
     # --- Generation provider ---
-    # "anthropic" (Claude, paid) or "gemini" (free tier). The free HF Spaces deploy
-    # uses gemini; local dev defaults to anthropic.
-    llm_provider: str = "anthropic"
+    # Primary provider: "gemini" (default), "groq", or "anthropic". If the primary
+    # errors at request time (quota / access / network), the system automatically falls
+    # back to llm_fallback_provider ("option B"). Set llm_fallback_provider="" to disable.
+    llm_provider: str = "gemini"
+    llm_fallback_provider: str = "groq"
 
     # Claude
     anthropic_api_key: str = ""

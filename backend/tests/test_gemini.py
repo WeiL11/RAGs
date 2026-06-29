@@ -27,6 +27,7 @@ def test_get_llm_selects_provider():
     from app.rag.agentic.llm import AnthropicLLM, GeminiLLM, get_llm
 
     s = get_settings()
+    s.llm_fallback_provider = ""  # no wrapper — test the bare primary selection
     s.llm_provider = "gemini"
     s.gemini_api_key = "x"
     assert isinstance(get_llm(s), GeminiLLM)

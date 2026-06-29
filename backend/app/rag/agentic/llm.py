@@ -51,13 +51,53 @@ class LLM(Protocol):
     async def complete(self, system: str, user: str, model: str | None = None) -> Completion: ...
 
 
-def get_llm(settings) -> LLM:  # type: ignore[no-untyped-def]
-    """Pick the adapter from settings.llm_provider ('anthropic' | 'gemini' | 'groq')."""
-    if settings.llm_provider == "gemini":
+def _build_llm(settings, provider: str) -> "LLM":  # type: ignore[no-untyped-def]
+    if provider == "gemini":
         return GeminiLLM(settings)
-    if settings.llm_provider == "groq":
+    if provider == "groq":
         return GroqLLM(settings)
     return AnthropicLLM(settings)
+
+
+def get_llm(settings) -> LLM:  # type: ignore[no-untyped-def]
+    """Primary provider (settings.llm_provider) with automatic fallback to
+    settings.llm_fallback_provider ('option B') if the primary errors at request time."""
+    primary = _build_llm(settings, settings.llm_provider)
+    fb = getattr(settings, "llm_fallback_provider", "") or ""
+    if fb and fb != settings.llm_provider:
+        return FallbackLLM(primary, _build_llm(settings, fb))
+    return primary
+
+
+class FallbackLLM:
+    """Try the primary adapter; on a request-time error (quota/403/network) before any
+    output, transparently switch to the secondary ('option B')."""
+
+    def __init__(self, primary, secondary) -> None:  # type: ignore[no-untyped-def]
+        self._p = primary
+        self._s = secondary
+        self.model = primary.model
+        self.grader_model = primary.grader_model
+
+    async def stream_turn(self, system, messages, tools):  # type: ignore[no-untyped-def]
+        it = self._p.stream_turn(system, messages, tools).__aiter__()
+        try:
+            first = await it.__anext__()
+        except StopAsyncIteration:
+            return
+        except Exception:  # noqa: BLE001 — primary failed before output → use secondary
+            async for ev in self._s.stream_turn(system, messages, tools):
+                yield ev
+            return
+        yield first
+        async for ev in it:  # primary already producing; finish it
+            yield ev
+
+    async def complete(self, system, user, model=None):  # type: ignore[no-untyped-def]
+        try:
+            return await self._p.complete(system, user, model)
+        except Exception:  # noqa: BLE001 — secondary uses its OWN default model (model=None)
+            return await self._s.complete(system, user, None)
 
 
 class AnthropicLLM:
@@ -139,14 +179,23 @@ class GeminiLLM:
     """
 
     def __init__(self, settings) -> None:  # type: ignore[no-untyped-def]
-        from google import genai  # lazy
         from google.genai import types  # lazy
 
         self._types = types
-        self._client = genai.Client(api_key=settings.gemini_api_key or None)
+        self._settings = settings
+        self._client = None  # lazy: genai.Client() requires a key at construction, so
+        # defer it to first use → no key raises at CALL time (so FallbackLLM can switch).
         self.model = settings.gemini_model
         self.grader_model = settings.gemini_model
         self.max_tokens = settings.max_tokens
+
+    @property
+    def _aio(self):
+        if self._client is None:
+            from google import genai  # lazy
+
+            self._client = genai.Client(api_key=self._settings.gemini_api_key or None)
+        return self._client.aio
 
     def _tool_config(self, tools: list[dict[str, Any]]):
         if not tools:
@@ -219,7 +268,7 @@ class GeminiLLM:
             automatic_function_calling=t.AutomaticFunctionCallingConfig(disable=True),
             max_output_tokens=self.max_tokens,
         )
-        stream = self._client.aio.models.generate_content_stream(
+        stream = self._aio.models.generate_content_stream(
             model=self.model, contents=self._contents(messages), config=config
         )
         if inspect.isawaitable(stream):
@@ -263,7 +312,7 @@ class GeminiLLM:
 
     async def complete(self, system: str, user: str, model: str | None = None) -> Completion:
         t = self._types
-        resp = await self._client.aio.models.generate_content(
+        resp = await self._aio.models.generate_content(
             model=model or self.model,
             contents=user,
             config=t.GenerateContentConfig(system_instruction=system or None, max_output_tokens=1024),

@@ -8,7 +8,7 @@ backend so the shipped index + Gemini provider are picked up.
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-os.environ.setdefault("LLM_PROVIDER", "groq")
+os.environ.setdefault("LLM_PROVIDER", "gemini")  # primary; groq is the auto-fallback ("option B")
 # Keep the query-suggestion feature free on the Space (heuristic, no LLM call).
 os.environ.setdefault("SUGGEST_USE_LLM", "false")
 os.environ.setdefault("EMBED_PROVIDER", "local")
