@@ -281,6 +281,54 @@ out of three simultaneously rate-limited providers, and (3) proving Corrective i
 an eval harness rather than intuition. The most important quality fixes came from human
 review, not the test suite — which is exactly why human review is irreplaceable in RAG.
 
+## How this project maps to agentic-AI role requirements
+
+An honest self-assessment against a set of AI-agent engineering requirements. ✅ = fully
+demonstrated, 🟡 = partially demonstrated (with the gap stated), ⬜ = not built here.
+
+- [x] ✅ **LLMs, modern AI frameworks, and/or ML.** Three LLM providers behind a
+  fallback adapter, BGE-M3 embeddings, embedded Qdrant, local Whisper ASR, and a
+  RAGAS-style eval harness. *(Gap: no RL environments — this is a retrieval/agent system,
+  not RL.)*
+- [x] ✅ **Prompt-engineering strategies.** Distinct, purpose-built prompts per strategy:
+  agentic tool-use system prompt, Corrective RAG **grader** + **query-rewrite** prompts,
+  domain-grounded **suggestion** prompt, and a fixed (non-generated) disclaimer. See
+  [`corrective/strategy.py`](backend/app/rag/corrective/strategy.py) and
+  [`suggest.py`](backend/app/rag/suggest.py).
+- [x] 🟡 **Strong foundation in Python and TypeScript.** Python is the whole backend
+  (RAG, ingestion, eval). TypeScript is a **minimal** Next.js chat frontend
+  ([`frontend/app/page.tsx`](frontend/app/page.tsx), `tsconfig.json`) — present but small.
+- [x] ✅ **Designing tool-calling environments to evaluate & benchmark agent systems.**
+  A 4-tool retrieval environment (`vector_search`, `keyword_search`, `expand_context`,
+  `get_episode_metadata`) the agent calls in a loop, plus a benchmark harness that scores
+  and **compares three agent strategies** on a golden set (this is how "Corrective is best"
+  was established). See [`agentic/toolbox.py`](backend/app/rag/agentic/toolbox.py) and
+  [`eval/`](backend/app/eval/).
+- [x] 🟡 **Agentic systems that predict and execute users' next steps.** A query
+  suggester **predicts** the user's likely next questions (grounded in retrieved content)
+  and renders them as clickable actions that **execute** on click
+  ([`suggest.py`](backend/app/rag/suggest.py)). *(Gap: it predicts the next question, not
+  multi-step actions across a complex workflow.)*
+- [ ] ⬜ **Mapping user paths on real-world software to API functionality and action
+  trajectories.** Not built — no UI-path-to-API mapping here.
+- [x] 🟡 **A searchable, self-updating memory store for continuously learning agents.**
+  The corpus is a **searchable** vector store that **self-updates** from the RSS feed and
+  trims to recent episodes ([`scripts/update_corpus.py`](backend/scripts/update_corpus.py),
+  `corpus_range()`). *(Gap: it's a refreshing knowledge store, not per-agent episodic
+  memory that learns from each interaction.)*
+- [ ] ⬜ **Interpreting DOM snapshots, mouse clicks, and keyboard inputs to select browser
+  actions.** Not built — there is no browser-automation / computer-use layer.
+- [x] 🟡 **A context composer that feeds relevant info into prompts from interactions,
+  content, and memory.** Each RAG strategy *is* a context composer: it retrieves the
+  relevant passages from the store and composes them into the LLM prompt, and adapts when a
+  query is ambiguous. *(Gap: composes from retrieval + the corpus, not from live page
+  content or browser-interaction signals.)*
+
+**Summary:** strong on LLM/prompt-engineering, tool-calling agent environments, and
+benchmarking (✅); partial on next-step prediction, a self-updating searchable store, and
+context composition (🟡); the browser/DOM-action and UI-path→API-mapping pieces are out of
+scope here (⬜).
+
 ## Status
 M0–M3 complete + Corrective RAG; 3 strategies ready. **EP658–EP671 (14 episodes)** built
 and searchable for free, auto-updating to the most recent episodes. Tier-1 retrieval
