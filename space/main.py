@@ -34,6 +34,13 @@ registry = build_default_registry(settings)
 suggester = QuerySuggester(settings)
 STRATEGIES = registry.names()
 
+try:
+    from app.ingestion.status import corpus_range  # noqa: E402
+
+    CORPUS = corpus_range(settings).human
+except Exception:  # noqa: BLE001
+    CORPUS = ""
+
 
 def _provider_key(s) -> str:
     return {"groq": s.groq_api_key, "gemini": s.gemini_api_key,
@@ -94,7 +101,8 @@ async def respond(message: str, history, strategy: str):
 demo = gr.ChatInterface(
     fn=respond,
     title="股癌 Gooaye — Podcast RAG",
-    description="問股癌 podcast 的內容，AI 依逐字稿回答並標註來源。內容為節目個人觀點，非投資建議。",
+    description=(f"📚 涵蓋最近集數：{CORPUS}。\n" if CORPUS else "")
+    + "問股癌 podcast 的內容，AI 依逐字稿回答並標註來源。內容為節目個人觀點，非投資建議。",
     additional_inputs=[
         gr.Dropdown(choices=STRATEGIES, value=STRATEGIES[0], label="RAG strategy")
     ],
