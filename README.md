@@ -197,6 +197,90 @@ gooaye-rag/
 - Known production gaps (concurrency, observability, retries/caching, reranking) are
   tracked in [docs/SYSTEM.md](docs/SYSTEM.md) §6c.
 
+## Test design
+
+Tests are layered by *what each layer is afraid of*, so most of the suite runs offline,
+for free, in seconds (`cd backend && pytest` → 46 tests in ~3s).
+
+1. **Contract tests** (`test_contract.py`) — *fear: the abstraction leaks.* Using only the
+   `echo` stub, assert `/chat` streams SSE and `/strategies` lists strategies. This is the
+   litmus test of the whole design: it proves adding a strategy never touches the app shell.
+2. **Unit tests + a Fake LLM** — *fear: the logic is wrong.* Every strategy takes an
+   injected `FakeLLM` with pre-recorded responses, so the Agentic tool-loop, the Corrective
+   grade→rewrite→re-retrieve flow, the CJK chunker (sentence boundaries + ad-stripping), and
+   the suggester (ambiguity detection) are all tested with **no network, no key, no cost**.
+3. **Evaluation harness** — *fear: it runs but answers badly.* Split in two: a **free
+   retrieval scorecard** (Recall@k / MRR, no LLM — see the table above) and an
+   **answer-quality harness** (`app.eval.run_eval`, LLM-as-judge for faithfulness /
+   correctness / relevance). The golden set is `eval/golden.yaml` (30 questions),
+   human-verified. This layer is what produced the "Corrective is best" conclusion
+   (corrective 0.93/0.93/0.97 with 0 errors vs. agentic 0.50/0.50/0.50 with 2 errors —
+   Groq's Llama function-calling is unreliable, which the harness caught, not intuition).
+
+## Engineering log: challenges & solutions
+
+A by-category record of what went wrong and how it was fixed — kept as a portfolio of the
+real problems behind the architecture decisions above.
+
+**A. Data-source reality.**
+- *Third-party transcripts were unreliable* — gooayetranscript.com is a JS-rendered SPA
+  exposing only ~30 episodes with inconsistent slugs. → **Generate transcripts ourselves**
+  via ASR from the RSS audio feed: complete, timestamped, legally cleaner, fully owned.
+- *Disk-footprint fear* — the full catalog is 18–25 GB of audio. → **Stream audio,
+  transcribe, delete immediately**; persist only transcript JSON (<500 MB) and gate
+  ingestion behind an episode window.
+
+**B. The "why pay?" constraint (a recurring user requirement).**
+- Redesigned into a **fully local, free pipeline**: `mlx-whisper` ASR (Apple Silicon),
+  BGE-M3 local embeddings, embedded Qdrant (no Docker), and free-tier Gemini/Groq for the
+  answer step. Paid models are only needed when *better quality* is wanted, never to run.
+
+**C. Deployment (Hugging Face Spaces).**
+- `ModuleNotFoundError: 'app' is not a package` — the entry file `app.py` shadowed the
+  `app` package. → Rename entry to `main.py`, delete the stale file.
+- *429 (limit: 0) persisted after the fix* — HF **cached the pip layer** (unchanged
+  `requirements.txt` → stale backend). → Add a cache-bust tag and pin `backend @main`.
+- *Gradio version churn* — Gradio 6 dropped `type="messages"`; Gradio 4.44 clashed with
+  newer `huggingface_hub` (HfFolder import). → Upgrade to 6.19 and drop the `type` arg.
+
+**D. Provider quotas & blocks (the most time-consuming).**
+- *All three free tiers exhausted/blocked* — Gemini 2.5-flash is 20/day and this account's
+  2.0-flash quota was 0; the old Groq key returned 403 "Access denied" (key-bound regional
+  block, **not** a network issue — a new key worked). → A `FallbackLLM` auto-demotes from a
+  failing primary to a backup provider.
+- *Graph build 413 "Request too large"* — a full episode (~21k tokens) exceeds Groq's 12k
+  TPM. → Window each episode (6000 chars) + global throttle.
+- *Graph build 429 lost all work* — the daily token budget ran out at episode 13/14 and the
+  build only saved at the end. → **Incremental save per episode** + halve extractor
+  `max_tokens`.
+- *GeminiLLM crashed at construction* — `genai.Client` requires the key at build time. →
+  Make the client **lazy** (deferred `_aio` property).
+
+**E. Quality issues the user caught (product intuition, not tests).**
+- *Citations pointing at 0:00 were actually the sponsor ad* — chunk 0 bundled the ad with
+  real content. → A `_strip_leading_ad()` step drops the leading ~90s "本期節目由…" block (a
+  reindex makes it take effect in the vector store).
+- *Disclaimer wording changed every time* — it was LLM-generated. → Remove it from every
+  strategy's system prompt; append a **fixed** disclaimer string in code.
+- *Suggestions "secretly asked their own question"* — the feature auto-asked instead of
+  offering choices. → Rebuild as **clickable buttons**: a vague query renders up to 3
+  candidate questions; the user sees and picks one — fully transparent.
+- *Suggestion content was off-topic* — Llama-70b read 記憶體 ("memory") as human memory and
+  produced textbook questions. → Bake the **investing-domain context** into the prompt
+  (記憶體 = memory/DRAM stocks), yielding grounded host-opinion questions.
+
+**F. Self-inflicted.**
+- `prepare_space.sh` deleted its own working directory when run from inside `space_build`.
+  → Run it from the repo root, then `cd`.
+- `git push` DNS failure (`Could not resolve host`) from a VPN/network hiccup. → Retried
+  after the network recovered; everything pushed.
+
+**One-line takeaway:** the hard part wasn't writing *a* RAG — it was (1) a contract strong
+enough to make four strategies genuinely hot-swappable, (2) squeezing a working free demo
+out of three simultaneously rate-limited providers, and (3) proving Corrective is best with
+an eval harness rather than intuition. The most important quality fixes came from human
+review, not the test suite — which is exactly why human review is irreplaceable in RAG.
+
 ## Status
 M0–M3 complete + Corrective RAG; 3 strategies ready. **EP658–EP671 (14 episodes)** built
 and searchable for free, auto-updating to the most recent episodes. Tier-1 retrieval
