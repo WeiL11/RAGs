@@ -23,9 +23,13 @@ if os.path.exists(os.environ["GRAPH_PATH"]):
 os.environ.setdefault("ENABLED_STRATEGIES", _strats)
 # GEMINI_API_KEY comes from the Space secret.
 
+import glob  # noqa: E402
+from pathlib import Path  # noqa: E402
+
 import gradio as gr  # noqa: E402
 
 from app.config import get_settings  # noqa: E402
+from app.ingestion.models import TranscriptDoc  # noqa: E402
 from app.rag.registry import build_default_registry  # noqa: E402
 from app.rag.suggest import QuerySuggester  # noqa: E402
 
@@ -99,18 +103,60 @@ async def respond(message: str, history):
     yield answer or "（沒有產生答案）"
 
 
-demo = gr.ChatInterface(
-    fn=respond,
-    title="股癌 Gooaye — Podcast RAG",
-    description=(f"📚 涵蓋最近集數：{CORPUS}。\n" if CORPUS else "")
-    + "🏆 目前最佳方法：**Corrective RAG**（小樣本評估：忠實度 0.93、相關性 0.97；agentic 在 Groq 上的 function-calling 不穩）。\n"
-    + "問股癌 podcast 的內容，AI 依逐字稿回答並標註來源。內容為節目個人觀點，非投資建議。",
-    examples=[
-        "股癌最近怎麼看美股？",
-        "他對記憶體類股的看法？",
-        "他對比特幣的看法？",
-    ],
+_DESC = (
+    (f"📚 涵蓋最近集數：{CORPUS}。\n\n" if CORPUS else "")
+    + "🏆 目前最佳方法：**Corrective RAG**（小樣本評估：忠實度 0.93、相關性 0.97；agentic 在 Groq 上的 function-calling 不穩）。\n\n"
+    + "問股癌 podcast 的內容，AI 依逐字稿回答並標註來源（時間戳）。內容為節目個人觀點，非投資建議。"
 )
+
+# Transcript viewer (lazy): list episodes, load one only when selected (avoids slow startup).
+_EP_FILES = {Path(p).stem: p for p in glob.glob(os.path.join(HERE, "data", "transcripts", "*.json"))}
+_EP_LIST = sorted(_EP_FILES, key=lambda e: int(e[2:]) if e[2:].isdigit() else 0, reverse=True)
+
+
+def load_transcript(ep: str) -> str:
+    if not ep or ep not in _EP_FILES:
+        return ""
+    doc = TranscriptDoc.load(Path(_EP_FILES[ep]))
+    blocks, start, buf = [], None, []
+    for seg in doc.segments:  # group into ~30s lines so it renders fast + reads cleanly
+        if start is None:
+            start = seg.start
+        buf.append(seg.text)
+        if seg.end - start >= 30:
+            blocks.append(f"**`{_ts(start)}`**　{''.join(buf)}")
+            start, buf = None, []
+    if buf and start is not None:
+        blocks.append(f"**`{_ts(start)}`**　{''.join(buf)}")
+    return f"#### {ep} · {doc.publish_date} · {len(doc.segments)} 段\n\n" + "\n\n".join(blocks)
+
+
+async def _chat(message, history):
+    if not (message or "").strip():
+        yield history or [], ""
+        return
+    history = (history or []) + [
+        {"role": "user", "content": message},
+        {"role": "assistant", "content": ""},
+    ]
+    yield history, ""
+    async for partial in respond(message, history[:-1]):
+        history[-1]["content"] = partial
+        yield history, ""
+
+
+with gr.Blocks(title="股癌 Gooaye — Podcast RAG", fill_height=True) as demo:
+    gr.Markdown(f"# 股癌 Gooaye — Podcast RAG\n\n{_DESC}")
+    chatbot = gr.Chatbot(height=400, show_label=False)
+    box = gr.Textbox(placeholder="例如：股癌最近怎麼看美股？（打模糊的詞會給你建議）", show_label=False, autofocus=True)
+    gr.Examples(["股癌最近怎麼看美股？", "他對記憶體類股的看法？", "他對比特幣的看法？"], inputs=box)
+    box.submit(_chat, [box, chatbot], [chatbot, box])
+
+    with gr.Accordion("📜 逐字稿檢視（核對時間軸 — 選了集數才載入，避免拖慢）", open=False):
+        ep_dd = gr.Dropdown(_EP_LIST, label="選擇集數", value=None)
+        ep_view = gr.Markdown()
+        ep_dd.change(load_transcript, ep_dd, ep_view)
+
 
 if __name__ == "__main__":
     demo.launch()

@@ -21,6 +21,22 @@ def _split_sentences(text: str) -> list[str]:
     return parts or ([text] if text.strip() else [])
 
 
+# Opening sponsor read ("歡迎收聽…本期節目由 X 贊助") sits at 0:00 and pollutes both
+# retrieval and the cited timestamp. Drop the leading ad block so chunk 0 starts at the
+# first real-content segment.
+_AD_MARKERS = ("贊助", "本期節目由")
+
+
+def _strip_leading_ad(segments: list[Segment], window_s: float = 90.0) -> list[Segment]:
+    cut = -1
+    for i, s in enumerate(segments):
+        if s.start > window_s:
+            break
+        if any(m in s.text for m in _AD_MARKERS):
+            cut = i
+    return segments[cut + 1 :] if 0 <= cut < len(segments) - 1 else segments
+
+
 def chunk_segments(
     segments: list[Segment], target_chars: int = 700, overlap_chars: int = 120
 ) -> list[Chunk]:
@@ -30,6 +46,7 @@ def chunk_segments(
     chunk's ``start_s``/``end_s`` bracket its real audio span. Overlap is applied by
     carrying the tail of the previous chunk's text into the next.
     """
+    segments = _strip_leading_ad(segments)
     # Flatten into (sentence, start, end) keeping timing from the source segment.
     sentences: list[tuple[str, float, float]] = []
     for seg in segments:
